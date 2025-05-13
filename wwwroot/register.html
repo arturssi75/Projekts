@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="lv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reģistrācija - Transporta Sistēma</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="styles.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .register-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding-top: 2rem;
+            padding-bottom: 2rem;
+        }
+         .card-title {
+            font-weight: 300;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading-overlay" style="display: none;">
+        <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Ielādē...</span></div>
+    </div>
+    <div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1055;"></div>
+
+    <div class="container register-container">
+        <div class="col-md-8 col-lg-7 col-xl-6">
+            <div class="card shadow-sm">
+                <div class="card-body p-4 p-md-5">
+                     <div class="text-center mb-4">
+                        <i class="bi bi-truck" style="font-size: 3rem; color: var(--bs-primary);"></i>
+                        <h3 class="card-title mt-2">Transporta Sistēma</h3>
+                    </div>
+                    <h4 class="text-center fw-normal mb-4">Izveidot jaunu kontu</h4>
+                    <form id="registerForm">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="firstName" class="form-label">Vārds</label>
+                                <input type="text" class="form-control form-control-lg" id="firstName">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="lastName" class="form-label">Uzvārds</label>
+                                <input type="text" class="form-control form-control-lg" id="lastName">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Lietotājvārds <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control form-control-lg" id="username" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="email" class="form-label">E-pasts <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control form-control-lg" id="email" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Parole <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control form-control-lg" id="password" required minlength="6">
+                        </div>
+                         <div class="mb-4">
+                            <label for="role" class="form-label">Reģistrēties kā <span class="text-danger">*</span></label>
+                            <select class="form-select form-select-lg" id="role" required>
+                                <option value="" disabled selected>Izvēlieties lomu...</option>
+                                <option value="Client">Klients (Saņēmējs)</option>
+                                <option value="Dispatcher">Dispečers (Sūtītājs)</option>
+                            </select>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">Reģistrēties</button>
+                        </div>
+                    </form>
+                    <div class="text-center mt-4">
+                        <p class="mb-0">Jau ir konts? <a href="login.html">Pieteikties šeit</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="app.js"></script>
+    <script>
+        // Pārbauda, vai lietotājs jau nav autentificējies
+        if (isAuthenticated()) {
+            window.location.href = 'Index.html';
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const registerForm = document.getElementById('registerForm');
+            if (registerForm) {
+                registerForm.addEventListener('submit', async (event) => {
+                    event.preventDefault();
+                    toggleLoading(true);
+
+                    const firstName = document.getElementById('firstName').value;
+                    const lastName = document.getElementById('lastName').value;
+                    const username = document.getElementById('username').value;
+                    const email = document.getElementById('email').value;
+                    const password = document.getElementById('password').value;
+                    const role = document.getElementById('role').value;
+
+                    if (!role) {
+                        showToast('Lūdzu, izvēlieties lomu.', 'warning');
+                        toggleLoading(false);
+                        return;
+                    }
+
+                    try {
+                        const response = await axios.post(`${API_BASE}/Account/Register`, {
+                            username: username,
+                            email: email,
+                            password: password,
+                            firstName: firstName,
+                            lastName: lastName,
+                            role: role
+                        });
+                        toggleLoading(false);
+
+                        if (response.data && response.data.token) {
+                            console.log("Data received from API before stringify in register:", response.data);
+                            localStorage.setItem('authToken', response.data.token);
+                            localStorage.setItem('userData', JSON.stringify(response.data));
+                            showToast(response.data.message || 'Reģistrācija veiksmīga! Jūs tiekat pārvirzīts.', 'success');
+                            setTimeout(() => {
+                                window.location.href = 'Index.html';
+                            }, 1000);
+                        } else {
+                            const serverMessage = response.data?.message || 
+                                                  (Array.isArray(response.data?.errors) ? response.data.errors.join(' ') : 'Reģistrācija neizdevās.');
+                            showToast(serverMessage, 'danger');
+                        }
+                    } catch (error) {
+                        toggleLoading(false);
+                        let errorMessage = 'Reģistrācijas kļūda.';
+                        if (error.response && error.response.data) {
+                            if (error.response.data.errors && typeof error.response.data.errors === 'object') {
+                                errorMessage = Object.values(error.response.data.errors).flat().join(' \n');
+                            } else if (Array.isArray(error.response.data.errors)) {
+                                 errorMessage = error.response.data.errors.join(' \n');
+                            } else if (error.response.data.message) {
+                                errorMessage = error.response.data.message;
+                            } else if (error.response.data.title) {
+                                errorMessage = error.response.data.title;
+                            }
+                        }
+                        showToast(errorMessage, 'danger');
+                        console.error("Register error:", error.response || error);
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

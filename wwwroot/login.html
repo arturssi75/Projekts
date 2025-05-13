@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="lv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pieteikšanās - Transporta Sistēma</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="styles.css" rel="stylesheet">
+    <style>
+        /* Papildu stili specifiski šai lapai, ja nepieciešams */
+        body {
+            background-color: #f8f9fa; /* Gaišs fons */
+        }
+        .login-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .card-title {
+            font-weight: 300; /* Vieglāks virsraksta fonts */
+        }
+    </style>
+</head>
+<body>
+    <div id="loading-overlay" style="display: none;">
+        <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Ielādē...</span></div>
+    </div>
+    <div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1055;"></div>
+
+    <div class="container login-container">
+        <div class="col-md-6 col-lg-5 col-xl-4">
+            <div class="card shadow-sm">
+                <div class="card-body p-4 p-md-5">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-truck" style="font-size: 3rem; color: var(--bs-primary);"></i>
+                        <h3 class="card-title mt-2">Transporta Sistēma</h3>
+                    </div>
+                    <h4 class="text-center fw-normal mb-4">Pieteikšanās</h4>
+                    <form id="loginForm">
+                        <div class="mb-3">
+                            <label for="usernameOrEmail" class="form-label">Lietotājvārds vai E-pasts</label>
+                            <input type="text" class="form-control form-control-lg" id="usernameOrEmail" required>
+                        </div>
+                        <div class="mb-4">
+                            <label for="password" class="form-label">Parole</label>
+                            <input type="password" class="form-control form-control-lg" id="password" required>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">Pieteikties</button>
+                        </div>
+                    </form>
+                    <div class="text-center mt-4">
+                        <p class="mb-0">Nav konta? <a href="register.html">Reģistrēties šeit</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="app.js"></script> 
+    <script>
+        // Pārbauda, vai lietotājs jau nav autentificējies, un pārvirza, ja ir
+        if (isAuthenticated()) {
+            window.location.href = 'Index.html';
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const loginForm = document.getElementById('loginForm');
+            if (loginForm) {
+                loginForm.addEventListener('submit', async (event) => {
+                    event.preventDefault(); // Novērš formas noklusējuma darbību
+                    toggleLoading(true); // Parāda ielādes indikatoru
+
+                    const usernameOrEmail = document.getElementById('usernameOrEmail').value;
+                    const password = document.getElementById('password').value;
+
+                    try {
+                        // Izsaucam API pieteikšanās galapunktu
+                        const response = await axios.post(`${API_BASE}/Account/Login`, {
+                            userNameOrEmail: usernameOrEmail,
+                            password: password
+                        });
+
+                        toggleLoading(false); // Paslēpj ielādes indikatoru
+
+                        if (response.data && response.data.token) {
+                            console.log("Data received from API before stringify in login:", response.data);
+                            // Veiksmīga pieteikšanās
+                            localStorage.setItem('authToken', response.data.token); // Saglabā JWT tokenu
+                            localStorage.setItem('userData', JSON.stringify(response.data)); // Saglabā citus lietotāja datus
+                            
+                            showToast(response.data.message || 'Pieteikšanās veiksmīga!', 'success');
+                            
+                            // Neliela aizture, lai lietotājs redzētu paziņojumu, pirms pārvirzīšanas
+                            setTimeout(() => {
+                                window.location.href = 'Index.html'; // Pārvirza uz galveno lapu
+                            }, 1000);
+                        } else {
+                            // Ja API atgriež 200 OK, bet nav tokena (maz ticams scenārijs ar mūsu backendu)
+                            showToast(response.data.message || 'Pieteikšanās neizdevās. Mēģiniet vēlreiz.', 'danger');
+                        }
+                    } catch (error) {
+                        toggleLoading(false); // Paslēpj ielādes indikatoru
+                        // Apstrādā kļūdas no API (piem., 401 Unauthorized, 400 Bad Request)
+                        const errorMessage = error.response?.data?.message || 
+                                             error.response?.data?.title || 
+                                             (error.response?.data?.errors ? Object.values(error.response.data.errors).flat().join(' ') : null) ||
+                                             'Pieteikšanās kļūda. Pārbaudiet savienojumu vai ievadītos datus.';
+                        showToast(errorMessage, 'danger');
+                        console.error("Login error:", error.response || error);
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
